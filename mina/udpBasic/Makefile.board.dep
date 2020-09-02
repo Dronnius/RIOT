@@ -1,0 +1,40 @@
+# Put board specific dependencies here
+ifneq (,$(filter avr-rss2,$(BOARD)))
+
+  ifeq (ether,$(UPLINK))
+    USEMODULE += enc28j60
+    ENC_CS = GPIO_PIN\(PORT_D,6\)
+    ENC_INT = GPIO_PIN\(PORT_D,2\)
+    ENC_RST = GPIO_PIN\(PORT_D,7\)
+# fallback: set SPI bus and pins to default values
+    ENC_SPI ?= SPI_DEV\(0\)
+    ENC_CS  ?= GPIO_PIN\(0,0\)
+    ENC_INT ?= GPIO_PIN\(0,1\)
+    ENC_RST ?= GPIO_PIN\(0,2\)
+
+# export SPI and pins
+    CFLAGS += -DENC28J60_PARAM_SPI=$(ENC_SPI)
+    CFLAGS += -DENC28J60_PARAM_CS=$(ENC_CS)
+    CFLAGS += -DENC28J60_PARAM_INT=$(ENC_INT)
+    CFLAGS += -DENC28J60_PARAM_RESET=$(ENC_RST)
+
+# make sure we read the local enc28j60 params file
+    CFLAGS += -I$(CURDIR)
+
+  endif
+else ifeq (,$(filter native,$(BOARD)))
+  ifeq (slip,$(UPLINK))
+    USEMODULE += slipdev_stdio
+  else ifeq (ethos,$(UPLINK))
+    USEMODULE += stdio_ethos
+  else ifeq (wifi,$(UPLINK))
+    ifneq (,$(filter esp32 esp8266,$(CPU)))
+      USEMODULE += esp_wifi
+      USEMODULE += esp_now
+    else
+      $(error Only esp32 and esp8266 are currently supported)
+    endif
+  endif
+else
+  USEMODULE += socket_zep
+endif
