@@ -34,10 +34,15 @@ USEMODULE += gnrc_netdev_default
 USEMODULE += auto_init_gnrc_netif
 
 #Inlcude IPv6 stuff
-USEMODULE += gnrc_ipv6_default
+#USEMODULE += gnrc_ipv6_default
 
 #Include UDP stuff
-USEMODULE += gnrc_sock_udp
+#USEMODULE += gnrc_sock_udp
+
+#Include CoAP stuff
+USEMODULE += nanocoap_sock
+# include sha256 (used by example blockwise handler)
+USEMODULE += hashes
 
 # Specify the mandatory networking modules for 6LoWPAN border router
 USEMODULE += gnrc_sixlowpan_border_router_default
