@@ -28,7 +28,7 @@
 
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
-char thread_stack[640]; //THREAD_STACKSIZE_MAIN];
+char thread_stack[2048]; //THREAD_STACKSIZE_MAIN];
 
 
 kernel_pid_t coap_pid;
@@ -77,7 +77,7 @@ static int add_rpl_root(ipv6_addr_t *addr, uint8_t instance_id) {
 void* coaperator(void* arg)
 {
 	//printf("PID = %i", coap_pid);
-	printf("starting \"coaperator\"");
+	printf("starting \"coaperator\"\n");
 	(void) arg;
 	uint8_t buf[512];
 	sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
