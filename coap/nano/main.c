@@ -28,7 +28,7 @@
 
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
-char thread_stack[THREAD_STACKSIZE_MAIN];
+char thread_stack[640]; //THREAD_STACKSIZE_MAIN];
 
 
 kernel_pid_t coap_pid;
