@@ -44,7 +44,7 @@ int main (int argc, char* argv[])
 	session = coap_new_client_session(ctx, nullptr, &dst, COAP_PROTO_UDP);	//create CoAP session
 	if(!ctx || !session)
 	{
-		coap_log(LOG_EMERG, "fcannot create client session\n");
+		coap_log(LOG_EMERG, "cannot create client session\n");
 		goto finish;		
 	}
 	
@@ -57,7 +57,11 @@ int main (int argc, char* argv[])
 	}
 	
 	//add a URI-path option
-	coap_add_option(pdu, COAP_OPTION_URI_PATH, 5, /* reinterpret_cast<const uint8_t*>(msg) */ (const uint8_t*)msg);
+	if(coap_add_option(pdu, COAP_OPTION_URI_PATH, 5, /* reinterpret_cast<const uint8_t*>(msg) */ (const uint8_t*)msg) == COAP_INVALID_TID)
+	{
+		coap_log(LOG_EMERG, "failed to send message");
+		goto finish;
+	}
 	
 	coap_send(session, pdu); //send the pdu
 	

@@ -4,10 +4,12 @@ LIBCOAP?=libcoap-2-gnutls
 pkgconfig=$(shell pkg-config $(1) $(2))
 
 #använd output från pkg-config som C-kompilerings flagga, d.v.s. låt pkg-config säga vilken flagga som ska med
-CPPFLAGS=-Wall -Wextra $(call pkgconfig,--cflags,$(LIBCOAP))
+cflags=-Wall -Wextra $(call pkgconfig,--cflags,$(LIBCOAP))
 
-#samma som ovan fasst för länkaren
-LDLIBS=$(call pkgconfig,--libs,$(LIBCOAP))
+#samma som ovan fast för länkaren
+biblio=$(call pkgconfig,--libs,$(LIBCOAP))
+LDFLAGS = $(filter -L%, $(biblio))
+LDLIBS = $(filter -l%, $(biblio))
 #LINK.o=$(LINK.cc)
 
 #CXXFLAGS=-std=c++14
@@ -15,12 +17,13 @@ LDLIBS=$(call pkgconfig,--libs,$(LIBCOAP))
 $(CC) = gcc
 
 %.o:  %.c
-	$(CC) -c -o $@ $<
+	$(CC) -c -o $@ $< $(cflags)
 
 all: client 
 #-\nserver
 
 client: CoAPclient.o resolveAdd.o
+	$(info  biblio = $(biblio), flags = $(LDFLAGS), libs = $(LDLIBS))
 	$(CC) CoAPclient.o resolveAdd.o -o $@
 
 #server:: server.o common.o
