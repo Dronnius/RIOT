@@ -26,7 +26,7 @@ int resolve_address(const char* host, const char* service, coap_address_t* dst)
 		return error;
 	}
 	
-	for(ainfo = res; ainfo != NULL;  ainfo = ainfo = ainfo->ai_next)
+	for(ainfo = res; ainfo != NULL;  ainfo = ainfo->ai_next)
 		switch (ainfo->ai_family)
 		{
 			case AF_INET6:
