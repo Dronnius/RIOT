@@ -18,7 +18,7 @@ int main (int argc, char* argv[])
 	//parse arguments: "udpSender, IPv6 address, port, message"
 	if( argc < 4 )
 	{
-		printf("missing arguments: udpSender <IPv6 address> <Port> <Message>\n");
+		printf("missing arguments: %s <IPv6 address> <Port> <Message>\n", argv[0]);
 		return 0;
 	}
 	char* addr = argv[1];

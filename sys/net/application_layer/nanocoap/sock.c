@@ -27,7 +27,7 @@
 #include "net/nanocoap_sock.h"
 #include "net/sock/udp.h"
 
-#define ENABLE_DEBUG (0)
+#define ENABLE_DEBUG (1)
 #include "debug.h"
 
 ssize_t nanocoap_request(coap_pkt_t *pkt, sock_udp_ep_t *local, sock_udp_ep_t *remote, size_t len)
@@ -132,8 +132,15 @@ int nanocoap_server(sock_udp_ep_t *local, uint8_t *buf, size_t bufsize)
         return -1;
     }
 
+#ifdef ENABLE_DEBUG
+	printf("Debug message (sys/net/application_layer/nanocoap/sock.c): starting main server loop\n");
+#endif
+
     while (1) {
         res = sock_udp_recv(&sock, buf, bufsize, -1, &remote);
+#ifdef ENABLE_DEBUG
+	printf("Debug message (sys/net/application_layer/nanocoap/sock.c): message received\n");
+#endif
         if (res < 0) {
             DEBUG("error receiving UDP packet %d\n", (int)res);
         }

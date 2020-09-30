@@ -60,11 +60,14 @@ void* udpServer(void *args)
 			srv_buf[res] = '\0';
 			puts("Data received:");
 			puts(srv_buf);
-			mirror(srv_buf, res);
+			puts("Hexadecimal format:");
+			for(int i = 0; i < res; i++)
+				printf("%x", srv_buf[i]);
+			/*mirror(srv_buf, res);
 			if(sock_udp_send(&socket, srv_buf, sizeof(srv_buf), &remote) < 0)
 			{
 				puts("Error sending reply");
-			}
+			}*/
 		}
 	}
 }

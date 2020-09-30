@@ -29,7 +29,7 @@
 #include "bitarithm.h"
 #include "net/nanocoap.h"
 
-#define ENABLE_DEBUG (0)
+#define ENABLE_DEBUG (1)
 #include "debug.h"
 
 /**
@@ -414,8 +414,12 @@ ssize_t coap_tree_handler(coap_pkt_t *pkt, uint8_t *resp_buf,
         else if (res < 0) {
             break;
         }
-        else {
-            return resource->handler(pkt, resp_buf, resp_buf_len, resource->context);
+        else {		
+#ifdef ENABLE_DEBUG
+	printf("Debug message (sys/net/application_layer/nanocoap/nanocoap.c): attempting to access %s\n", resource->path);
+#endif
+	return resource->handler(pkt, resp_buf, resp_buf_len, resource->context);
+            
         }
     }
 
