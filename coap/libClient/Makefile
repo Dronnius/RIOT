@@ -8,6 +8,7 @@ cflags=-Wall -Wextra $(call pkgconfig,--cflags,$(LIBCOAP))
 
 #samma som ovan fast för länkaren
 biblio=$(call pkgconfig,--libs,$(LIBCOAP))
+#LDFLAGS=$(call pkgconfig,--libs,$(LIBCOAP))
 LDFLAGS = $(filter -L%, $(biblio))
 LDLIBS = $(filter -l%, $(biblio))
 #LINK.o=$(LINK.cc)
@@ -24,7 +25,7 @@ all: client
 
 client: CoAPclient.o resolveAdd.o
 	$(info  biblio = $(biblio), flags = $(LDFLAGS), libs = $(LDLIBS))
-	$(CC) CoAPclient.o resolveAdd.o -o $@
+	$(CC) CoAPclient.o resolveAdd.o -o $@ $(LDFLAGS) $(LDLIBS)
 
 #server:: server.o common.o
 clean:
