@@ -24,6 +24,8 @@
 
 #include <net/nanocoap_sock.h>
 
+#include "coap_handler.c"
+
 #define _IPV6_DEFAULT_PREFIX_LEN 64
 
 #define MAIN_QUEUE_SIZE     (8)
@@ -33,7 +35,7 @@ char thread_stack[2048]; //THREAD_STACKSIZE_MAIN];
 
 kernel_pid_t coap_pid;
 
-static const shell_command_t shell_commands[] =
+static const shell_command_t shell_commands[] = 
 {
 	{NULL, NULL, NULL}
 };
@@ -81,6 +83,7 @@ void* coaperator(void* arg)
 	(void) arg;
 	uint8_t buf[512];
 	sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
+	local.port = 5683;
 	if(nanocoap_server(&local, buf, sizeof(buf)) == -1)
 		puts("Error binding to local, or UDP reception failed");
 	return NULL;

@@ -14,6 +14,8 @@
 #include "net/nanocoap.h"
 #include "hashes/sha256.h"
 
+#define ENABLE_DEBUG (1)
+
 /* internal value that can be read/written via CoAP */
 static uint8_t internal_value = 0;
 
@@ -23,6 +25,9 @@ static const uint8_t block2_mcu[] = " board with a ";
 
 static ssize_t _echo_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
+#ifdef ENABLE_DEBUG
+	printf("DID AN ECHO THING!");		//DEBUG!!!
+#endif
     (void)context;
     char uri[CONFIG_NANOCOAP_URI_MAX];
 
@@ -38,6 +43,9 @@ static ssize_t _echo_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, void *co
 
 static ssize_t _riot_board_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
+#ifdef ENABLE_DEBUG
+	printf("DID A BOARD THING!");		//DEBUG!!!
+#endif
     (void)context;
     return coap_reply_simple(pkt, COAP_CODE_205, buf, len,
             COAP_FORMAT_TEXT, (uint8_t*)RIOT_BOARD, strlen(RIOT_BOARD));
@@ -79,6 +87,9 @@ static ssize_t _riot_block2_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, v
 
 static ssize_t _riot_value_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
+#ifdef ENABLE_DEBUG
+	printf("DID A VALUE THING!");		//DEBUG!!!
+#endif
     (void) context;
 
     ssize_t p = 0;
