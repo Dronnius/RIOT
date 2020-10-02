@@ -79,11 +79,11 @@ static int add_rpl_root(ipv6_addr_t *addr, uint8_t instance_id) {
 void* coaperator(void* arg)
 {
 	//printf("PID = %i", coap_pid);
-	printf("starting \"coaperator\"\n");
 	(void) arg;
 	uint8_t buf[512];
 	sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
 	local.port = 5683;
+	printf("starting \"coaperator\" on port %i\n", local.port);
 	if(nanocoap_server(&local, buf, sizeof(buf)) == -1)
 		puts("Error binding to local, or UDP reception failed");
 	return NULL;

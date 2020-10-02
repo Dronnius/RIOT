@@ -381,9 +381,15 @@ ssize_t coap_handle_req(coap_pkt_t *pkt, uint8_t *resp_buf, unsigned resp_buf_le
         return -EBADMSG;
     }
 
-    if (pkt->hdr->code == 0) {
+    if (pkt->hdr->code == 0) {		
+#ifdef ENABLE_DEBUG
+	printf("Debug message (sys/net/application_layer/nanocoap/nanocoap.c --> coap_handle_req): Code says \"Empty Message\"\t\t[EM]\n");
+#endif
         return coap_build_reply(pkt, COAP_CODE_EMPTY, resp_buf, resp_buf_len, 0);
-    }
+    }		
+#ifdef ENABLE_DEBUG
+	printf("Debug message (sys/net/application_layer/nanocoap/nanocoap.c --> coap_handle_req): Calling coap_tree_handler to resolve request\t\t[CT]\n");
+#endif
     return coap_tree_handler(pkt, resp_buf, resp_buf_len, coap_resources,
                              coap_resources_numof);
 }
@@ -397,6 +403,9 @@ ssize_t coap_tree_handler(coap_pkt_t *pkt, uint8_t *resp_buf,
 
     uint8_t uri[CONFIG_NANOCOAP_URI_MAX];
     if (coap_get_uri_path(pkt, uri) <= 0) {
+#ifdef ENABLE_DEBUG
+	printf("Debug message (sys/net/application_layer/nanocoap/nanocoap.c --> coap_tree_handler): ERROR, BAD MESSAGE\t\t[BM]\n");
+#endif
         return -EBADMSG;
     }
     DEBUG("nanocoap: URI path: \"%s\"\n", uri);
@@ -416,13 +425,16 @@ ssize_t coap_tree_handler(coap_pkt_t *pkt, uint8_t *resp_buf,
         }
         else {		
 #ifdef ENABLE_DEBUG
-	printf("Debug message (sys/net/application_layer/nanocoap/nanocoap.c): attempting to access %s\n", resource->path);
+	printf("Debug message (sys/net/application_layer/nanocoap/nanocoap.c --> coap_tree_handler): attempting to access %s\t\t[AA]\n", resource->path);
 #endif
 	return resource->handler(pkt, resp_buf, resp_buf_len, resource->context);
             
         }
     }
 
+#ifdef ENABLE_DEBUG
+	printf("Debug message (sys/net/application_layer/nanocoap/nanocoap.c --> coap_tree_handler): building code 404 (Not found) reply\t\t[NF]\n");
+#endif
     return coap_build_reply(pkt, COAP_CODE_404, resp_buf, resp_buf_len, 0);
 }
 

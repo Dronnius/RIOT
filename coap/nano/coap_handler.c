@@ -26,7 +26,7 @@ static const uint8_t block2_mcu[] = " board with a ";
 static ssize_t _echo_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
 #ifdef ENABLE_DEBUG
-	printf("DID AN ECHO THING!");		//DEBUG!!!
+	printf("DID AN ECHO THING!\n");		//DEBUG!!!
 #endif
     (void)context;
     char uri[CONFIG_NANOCOAP_URI_MAX];
@@ -88,7 +88,7 @@ static ssize_t _riot_block2_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, v
 static ssize_t _riot_value_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
 #ifdef ENABLE_DEBUG
-	printf("DID A VALUE THING!");		//DEBUG!!!
+	printf("DID A VALUE THING\n");		//DEBUG!!!
 #endif
     (void) context;
 
@@ -174,7 +174,8 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 const coap_resource_t coap_resources[] = {
     COAP_WELL_KNOWN_CORE_DEFAULT_HANDLER,
     { "/echo/", COAP_GET | COAP_MATCH_SUBTREE, _echo_handler, NULL },
-    { "/riot/board", COAP_GET, _riot_board_handler, NULL },
+    //{ "/riot/board", COAP_GET, _riot_board_handler, NULL },	//ACTIVATE THIS
+    { "/board/", COAP_GET, _riot_board_handler, NULL },		//REMOVE THIS
     { "/riot/value", COAP_GET | COAP_PUT | COAP_POST, _riot_value_handler, NULL },
     { "/riot/ver", COAP_GET, _riot_block2_handler, NULL },
     { "/sha256", COAP_POST, _sha256_handler, NULL },
