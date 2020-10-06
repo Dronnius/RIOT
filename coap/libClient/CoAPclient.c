@@ -57,7 +57,7 @@ int main (int argc, char* argv[])
 	}
 	
 	//add a URI-path option
-	if(coap_add_option(pdu, COAP_OPTION_URI_PATH, 5, /* reinterpret_cast<const uint8_t*>(msg) */ (const uint8_t*)msg) == COAP_INVALID_TID)
+	if(coap_add_option(pdu, COAP_OPTION_URI_PATH, strlen(msg), /* reinterpret_cast<const uint8_t*>(msg) */ (const uint8_t*)msg) == COAP_INVALID_TID)
 	{
 		coap_log(LOG_EMERG, "failed to send message");
 		goto finish;

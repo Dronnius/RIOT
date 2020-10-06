@@ -53,6 +53,9 @@ static ssize_t _riot_board_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, vo
 
 static ssize_t _riot_block2_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
+#ifdef ENABLE_DEBUG
+	printf("DID A VER THING\n");		//DEBUG!!!
+#endif
     (void)context;
     coap_block_slicer_t slicer;
     coap_block2_init(pkt, &slicer);
@@ -174,8 +177,7 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 const coap_resource_t coap_resources[] = {
     COAP_WELL_KNOWN_CORE_DEFAULT_HANDLER,
     { "/echo/", COAP_GET | COAP_MATCH_SUBTREE, _echo_handler, NULL },
-    //{ "/riot/board", COAP_GET, _riot_board_handler, NULL },	//ACTIVATE THIS
-    { "/board/", COAP_GET, _riot_board_handler, NULL },		//REMOVE THIS
+    { "/riot/board", COAP_GET, _riot_board_handler, NULL },
     { "/riot/value", COAP_GET | COAP_PUT | COAP_POST, _riot_value_handler, NULL },
     { "/riot/ver", COAP_GET, _riot_block2_handler, NULL },
     { "/sha256", COAP_POST, _sha256_handler, NULL },
