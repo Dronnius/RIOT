@@ -76,8 +76,8 @@ int main (int argc, char* argv[])
 			break;
 		
 		//read... smth?
-		else if (res > 0)
-			coap_io_do_io(ctx, 0);
+		/*else if (res > 0)
+			coap_io_do_io(ctx, 0);*/
 	}
 	
 	result = EXIT_SUCCESS;
