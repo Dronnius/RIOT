@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 //#include <address.h>
+//#include <sys/epolĺ.h>
 
 #include <coap2/coap.h>
 
@@ -65,7 +66,19 @@ int main (int argc, char* argv[])
 	
 	coap_send(session, pdu); //send the pdu
 	
-	coap_io_process(ctx, 0);	//not sure what this is ("main message processing loop" according to documentation) (Replaced depricated function coap_run_once)	
+	int res;
+	while(1)
+	{
+		res = coap_io_process(ctx, 0);	//not sure what this is ("main message processing loop" according to documentation) (Replaced depricated function coap_run_once)	
+		
+		//internal error
+		if(res < 0)
+			break;
+		
+		//read... smth?
+		else if (res > 0)
+			coap_io_do_io(ctx, 0);
+	}
 	
 	result = EXIT_SUCCESS;
 finish:
