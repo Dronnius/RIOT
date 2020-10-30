@@ -23,7 +23,7 @@ static const uint8_t block2_intro[] = "This is RIOT (Version: ";
 static const uint8_t block2_board[] = " running on a ";
 static const uint8_t block2_mcu[] = " board with a ";
 
-static ssize_t _echo_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
+static ssize_t _echo_handler(coap_pkt_t * pkt, uint8_t * buf, size_t len, void * context)
 {
 #ifdef ENABLE_DEBUG
 	printf("DID AN ECHO THING!\n");		//DEBUG!!!
@@ -181,6 +181,8 @@ const coap_resource_t coap_resources[] = {
     { "/riot/value", COAP_GET | COAP_PUT | COAP_POST, _riot_value_handler, NULL },
     { "/riot/ver", COAP_GET, _riot_block2_handler, NULL },
     { "/sha256", COAP_POST, _sha256_handler, NULL },
+	   // {"/set_var", COAP_POST, _var_set_handler, NULL},
+		 //   {"/get_var", COAP_POST, _var_get_handler, NULL},
 };
 
 const unsigned coap_resources_numof = ARRAY_SIZE(coap_resources);
