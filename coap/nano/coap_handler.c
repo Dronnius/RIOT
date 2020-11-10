@@ -9,6 +9,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+//#include <unistd.h>
+//#include <sys/types.h>
+#include <thread.h>
 
 #include "fmt.h"
 #include "net/nanocoap.h"
@@ -173,16 +176,58 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
     return pkt_pos - (uint8_t*)pkt->hdr;
 }
 
+extern int _gnrc_netif_config(int argc, char **argv);
+
+void* caller(void* arg)
+{
+    printf("Starting process #%i\t(%s)\n", thread_getpid(), thread_getname(thread_getpid()));
+
+    (void) arg;
+    char command[9] = "ifconfig";
+    char* commPoint = command;
+    _gnrc_netif_config(1, &commPoint);
+
+    printf("Killing process #%i\t(%s)\n", thread_getpid(), thread_getname(thread_getpid()));
+    return NULL;
+}
+//TODO:
+// parse arguments          X
+// move to thread           X
+// execute ifconfig set     O
+// pipe processes (I/O)
+// return result
+static ssize_t _ifconfig_chan_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
+{
+    // parse argument
+    char uri[CONFIG_NANOCOAP_URI_MAX];
+    int uri_len;
+    uri_len = coap_get_uri_path(pkt, (uint8_t *)uri);
+    char* arg = uri + strlen("/ifconfig/6/set/chan/");
+    int newVal = atoi(arg);
+
+    printf("DEBUG\treceived argument: %i\n", newVal);
+    (void)uri_len;
+    (void)context;
+
+    pid_t child;
+    char child_stack[THREAD_STACKSIZE_SMALL];
+    child = thread_create(child_stack, THREAD_STACKSIZE_SMALL, THREAD_PRIORITY_MAIN - 1,
+                          THREAD_CREATE_STACKTEST, caller, arg, "ifconfig agent");
+
+    (void)child;
+
+    return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, NULL, 0);
+}
+
 /* must be sorted by path (ASCII order) */
 const coap_resource_t coap_resources[] = {
     COAP_WELL_KNOWN_CORE_DEFAULT_HANDLER,
+    { "/ifconfig/6/set/chan/", COAP_GET | COAP_MATCH_SUBTREE, _ifconfig_chan_handler, NULL},
     { "/echo/", COAP_GET | COAP_MATCH_SUBTREE, _echo_handler, NULL },
     { "/riot/board", COAP_GET, _riot_board_handler, NULL },
     { "/riot/value", COAP_GET | COAP_PUT | COAP_POST, _riot_value_handler, NULL },
     { "/riot/ver", COAP_GET, _riot_block2_handler, NULL },
     { "/sha256", COAP_POST, _sha256_handler, NULL },
-	   // {"/set_var", COAP_POST, _var_set_handler, NULL},
-		 //   {"/get_var", COAP_POST, _var_get_handler, NULL},
 };
 
 const unsigned coap_resources_numof = ARRAY_SIZE(coap_resources);
