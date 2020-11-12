@@ -182,8 +182,7 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 // parse arguments          X
 // move to thread           X
 // execute with arguments   X
-// NEW - remove threading   O
-// pipe processes (I/O)
+// NEW - remove threading   X
 // return result
 //
 //NOTES:
@@ -192,9 +191,9 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 // nothing good, probably, freezing the handler after spawning the caller fixed the 9 character agument issue
 extern int _gnrc_netif_config(int argc, char **argv);
 
-void* caller(void* arg) //arg is cut to 9 characters (inlucding terminating null)!!! WHY???
+void* caller(void* arg)
 {
-    printf("Starting process #%i\t(%s)\n\n", thread_getpid(), thread_getname(thread_getpid()));
+    //printf("Starting process #%i\t(%s)\n\n", thread_getpid(), thread_getname(thread_getpid()));
 
     /*char meep[1024];
     meep[1023] = 'k';
@@ -202,7 +201,7 @@ void* caller(void* arg) //arg is cut to 9 characters (inlucding terminating null
     /*int k = 0;
     while(((char*)arg)[k] != '\0')
         ((char*)arg)[k++] = '!';            //DEBUG "!" */
-    printf("incoming argument: \"%s\"\n", (char*)arg);      //DEBUG
+    //printf("incoming argument: \"%s\"\n", (char*)arg);      //DEBUG
 
     //translate arguments to desired form
     char* temp;
@@ -211,10 +210,8 @@ void* caller(void* arg) //arg is cut to 9 characters (inlucding terminating null
     args[0] = command; //set first argument
     args[1] = arg;  //set second argument
     int i = 1;
-        printf("DEBUG A\n");
     while((temp = strchr((char*)args[i++], (int)' ')) != NULL && i < 10) //loop until last occurence
     {
-        printf("LOOP\n");
         //printf("\tAssigning \"%c\"'s position to args[%i]...", *temp, i);
         args[i] = temp;
         //printf("\t")
@@ -222,19 +219,23 @@ void* caller(void* arg) //arg is cut to 9 characters (inlucding terminating null
         args[i]++; //shift to next character (instead of the space)
         //i++;    //increment index
     }
-        printf("DEBUG B\n");
     if(i >= 10 && strchr((char*)args[9], (int)' ') != NULL)
     { printf("ERROR: too many arguments for command handler"); return NULL;}
 
     //print arguments (debugging reasons)
+
+    printf("Arguments (%i):\n", i);
     for(int j = 0; j < i; j++)
-        printf("%s\n", args[j]);
+        printf("\t%i) \t%s\n", j, args[j]);
 
-    //temp = &args;
-        printf("DEBUG C\n");
+    //FILE* fp;
+    //printf("---before---\n");
+    //fp = freopen("pipe.txt", "w", stdout);    freopen doesn't exist
     _gnrc_netif_config(i, args);
+    //fclose(fp);
+    //printf("---after---\n");
 
-    printf("Killing process #%i\t(%s)\n\n", thread_getpid(), thread_getname(thread_getpid()));
+    //printf("Killing process #%i\t(%s)\n\n", thread_getpid(), thread_getname(thread_getpid()));
     return NULL;
 }
 
@@ -244,7 +245,7 @@ static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, voi
     char uri[CONFIG_NANOCOAP_URI_MAX];
     int uri_len;
     uri_len = coap_get_uri_path(pkt, (uint8_t *)uri);
-        printf("received uri: \"%s\"\n", uri);       //DEBUG
+        //printf("received uri: \"%s\"\n", uri);       //DEBUG
     char* arg = uri + strlen("/ifconfig/");
     //int newVal = atoi(arg);
 
@@ -252,17 +253,14 @@ static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, voi
     (void)uri_len;
     (void)context;
 
-    printf("sending argument: \"%s\"\n", arg);
+    //printf("sending argument: \"%s\"\n", arg);
 
-    pid_t child;
-    char child_stack[THREAD_STACKSIZE_SMALL + 2];   //try increasing by 1 (+1 on stack and size below)
-    child = thread_create(child_stack, THREAD_STACKSIZE_SMALL + 2, THREAD_PRIORITY_MAIN - 1,
-                          THREAD_CREATE_STACKTEST, caller, arg, "ifconfig agent");
+    // FAILED MULTITHREADING EXPERIMENT
+    //pid_t child;
+    //char child_stack[THREAD_STACKSIZE_SMALL + 2];   //try increasing by 1 (+1 on stack and size below)
+    //child = thread_create(child_stack, THREAD_STACKSIZE_SMALL + 2, THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST, caller, arg, "ifconfig agent");
 
-    (void)child;
-
-    while(1)
-        thread_yield();
+    caller(arg);
 
     return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, NULL, 0);
 }

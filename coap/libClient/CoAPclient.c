@@ -47,14 +47,20 @@ void simple_resp_handler (struct coap_context_t *context, coap_session_t *sessio
 int main (int argc, char* argv[])
 {
 	//parse arguments: "udpSender, IPv6 address, port, message"
-	if( argc < 4 )
+	if( argc < 5 )
 	{
-		printf("missing arguments: %s <IPv6 address> <Port> <Message>\n", argv[0]);
+		printf("missing arguments: %s <IPv6 address> <Port> <Message> <Code>\n", argv[0]);
 		return 0;
 	}
 	char* addr = argv[1];
 	char* port = argv[2];
 	char* msg = argv[3];
+	coap_request_t code;
+	if(strcmp("put", argv[4]) == 0 || strcmp("PUT", argv[4]) == 0)
+	    code = COAP_REQUEST_PUT;
+    else if(strcmp("get", argv[4]) == 0 || strcmp("GET", argv[4]) == 0)
+        code = COAP_REQUEST_GET;
+    else code = COAP_REQUEST_GET; //temp fix
 	
 	
 	coap_context_t* ctx = nullptr;
@@ -87,7 +93,7 @@ int main (int argc, char* argv[])
     coap_register_response_handler(ctx, simple_resp_handler);
 	
 	//Construct CoAP message	(pdu seems to represent the CoAP datagram)
-	pdu = coap_pdu_init(COAP_MESSAGE_CON, COAP_REQUEST_GET, 0 /*message ID (for ACK-matching)*/, coap_session_max_pdu_size(session));
+	pdu = coap_pdu_init(COAP_MESSAGE_CON, code, 0 /*message ID (for ACK-matching)*/, coap_session_max_pdu_size(session));
 	if(!pdu)
 	{
 		coap_log(LOG_EMERG, "cannot create PDU\n");
@@ -121,7 +127,7 @@ int main (int argc, char* argv[])
         fgets(input, MAXINPUT, stdin); //read up to 100 characters from standard input
 
         //Construct CoAP message	(pdu seems to represent the CoAP datagram)
-        pdu = coap_pdu_init(COAP_MESSAGE_CON, COAP_REQUEST_GET, id++ /*message ID (for ACK-matching)*/, coap_session_max_pdu_size(session));
+        pdu = coap_pdu_init(COAP_MESSAGE_CON, code, id++ /*message ID (for ACK-matching)*/, coap_session_max_pdu_size(session));
         if(!pdu)
         {
             coap_log(LOG_EMERG, "cannot create PDU\n");
