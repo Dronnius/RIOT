@@ -183,13 +183,14 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 // move to thread           X
 // execute with arguments   X
 // NEW - remove threading   X
-// return result
+// return result            O
 //
 //NOTES:
-// maybe multithreading with limited memory isn't a good idea?
-// what happens to the caller's stack when the handler returns?
-// nothing good, probably, freezing the handler after spawning the caller fixed the 9 character agument issue
+// How do I change stdout during ifconfig call?
+// 
 extern int _gnrc_netif_config(int argc, char **argv);
+// full list of commands (excluding programmer-defined?) can be found in variable _shell_command_list
+// in directory RIOT/sys/shell/commands/shell_commands.c
 
 void* caller(void* arg)
 {
@@ -257,12 +258,20 @@ static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, voi
 
     // FAILED MULTITHREADING EXPERIMENT
     //pid_t child;
-    //char child_stack[THREAD_STACKSIZE_SMALL + 2];   //try increasing by 1 (+1 on stack and size below)
-    //child = thread_create(child_stack, THREAD_STACKSIZE_SMALL + 2, THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST, caller, arg, "ifconfig agent");
+    //char child_stack[THREAD_STACKSIZE_SMALL];   //try increasing by 1 (+1 on stack and size below)
+    //child = thread_create(child_stack, THREAD_STACKSIZE_SMALL, THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST, caller, arg, "ifconfig agent");
 
-    caller(arg);
+    if(caller(arg) == 0)
+    {
+        char payload[8] = "Success";
+        return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+    }
+    else
+    {
+        char payload[8] = "Failure";
+        return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+    }
 
-    return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, NULL, 0);
 }
 
 // ===== END OF WORK AREA ===== //
