@@ -42,7 +42,7 @@ USEMODULE += auto_init_gnrc_netif
 #Include CoAP stuff
 USEMODULE += nanocoap_sock
 # include sha256 (used by example blockwise handler)
-USEMODULE += hashes
+# USEMODULE += hashes
 
 # Specify the mandatory networking modules for 6LoWPAN border router
 USEMODULE += gnrc_sixlowpan_border_router_default

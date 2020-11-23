@@ -13,14 +13,65 @@
 //#include <sys/types.h>
 #include <thread.h>
 
+#include "shell.h"
+//#include "../../sys/shell/commands/shell_commands.c"
 #include "fmt.h"
 #include "net/nanocoap.h"
-#include "hashes/sha256.h"
+//#include "hashes/sha256.h"
+#include "extra.h"
 
 #define ENABLE_DEBUG (1)
 
 /* internal value that can be read/written via CoAP */
 static uint8_t internal_value = 0;
+static const shell_command_t * extra_shell_commands = NULL;
+int dint = 3;
+
+void print_dint(void)
+{
+    printf("checking threading (thread: %i):", thread_getpid());
+    printf("\nDINT\n\t<**> <DEBUG> dint = %i,\t &dint = %lx,\t thread ID = %i <DEBUG> <**>\n", dint, &dint, thread_getpid);
+    printf("\nEXTRAS\n\t <**> <DEBUG> extra = %lx,\t &extra = %lx,\t thread ID = %i <DEBUG> <**>\n", extra_shell_commands, &extra_shell_commands, thread_getpid());
+    
+    return;
+}
+
+
+/*DEBUG        //FOR SOME REASON (PROBABLY DUE TO THREADING) THE SHELL AND THE SERVER HAVE DIFFERENT ADDRESSES FOR THE EXTRA COMMANDS
+void check_extras(void)
+{
+    printf("[-][-][-] Extras memory position: %lx [-][-][-]\n", extra_shell_commands);    //debug
+    printf("\t***Extra commands***\n");
+    const shell_command_t* peek = shell_commands;
+    if(peek->name == NULL) printf("\t\tNO EXTRA COMMANDS\n");
+    while(peek->name != NULL)
+    {
+        printf("\t\t%s, %s\n", peek->name, peek->desc);
+        peek = peek + 1;
+    }
+    printf("\t***End of Extras***\n");
+}
+//DEBUG*/
+
+void set_extra_commands(const shell_command_t* extras)
+{
+    if( extras != NULL)
+        extra_shell_commands = extras;
+    check_extras(); //debug
+}
+/*DEBUG
+void wait_until_issue(void)
+{
+    int i = 0;
+    while(extra_shell_commands->name != NULL)
+    {
+        i++;
+        thread_yield();
+    }
+    printf("\t!!!\tDEBUG: Extra shell commands \"nulled\" after %i iterations.", i);
+    return;
+}
+//DEBUG*/
 
 static const uint8_t block2_intro[] = "This is RIOT (Version: ";
 static const uint8_t block2_board[] = " running on a ";
@@ -125,14 +176,14 @@ static ssize_t _riot_value_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, vo
     return coap_reply_simple(pkt, code, buf, len,
             COAP_FORMAT_TEXT, (uint8_t*)rsp, p);
 }
-
+/*
 ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context)
 {
     (void)context;
 
-    /* using a shared sha256 context *will* break if two requests are handled
-     * at the same time.  doing it anyways, as this is meant to showcase block1
-     * support, not proper synchronisation. */
+    // using a shared sha256 context *will* break if two requests are handled
+    // at the same time.  doing it anyways, as this is meant to showcase block1
+    // support, not proper synchronisation.
     static sha256_context_t sha256;
 
     uint8_t digest[SHA256_DIGEST_LENGTH];
@@ -175,6 +226,7 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 
     return pkt_pos - (uint8_t*)pkt->hdr;
 }
+*/
 
 // ===== WORK IN PROGRESS ===== //
 
@@ -183,7 +235,11 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 // move to thread           X
 // execute with arguments   X
 // NEW - remove threading   X
-// return result            O
+// return result            /
+// figure out command list  X
+// generalize caller        O
+// retrieve command list
+// finalize
 //
 //NOTES:
 // How do I change stdout during ifconfig call?
@@ -192,76 +248,78 @@ extern int _gnrc_netif_config(int argc, char **argv);
 // full list of commands (excluding programmer-defined?) can be found in variable _shell_command_list
 // in directory RIOT/sys/shell/commands/shell_commands.c
 
-void* caller(void* arg)
-{
-    //printf("Starting process #%i\t(%s)\n\n", thread_getpid(), thread_getname(thread_getpid()));
-
-    /*char meep[1024];
-    meep[1023] = 'k';
-    (void)meep;*/
-    /*int k = 0;
-    while(((char*)arg)[k] != '\0')
-        ((char*)arg)[k++] = '!';            //DEBUG "!" */
-    //printf("incoming argument: \"%s\"\n", (char*)arg);      //DEBUG
-
-    //translate arguments to desired form
-    char* temp;
-    char* args[10];
-    char command[9] = "ifconfig";
-    args[0] = command; //set first argument
-    args[1] = arg;  //set second argument
-    int i = 1;
-    while((temp = strchr((char*)args[i++], (int)' ')) != NULL && i < 10) //loop until last occurence
-    {
-        //printf("\tAssigning \"%c\"'s position to args[%i]...", *temp, i);
-        args[i] = temp;
-        //printf("\t")
-        *args[i] = '\0';    //exchange spaces with NULL characters
-        args[i]++; //shift to next character (instead of the space)
-        //i++;    //increment index
-    }
-    if(i >= 10 && strchr((char*)args[9], (int)' ') != NULL)
-    { printf("ERROR: too many arguments for command handler"); return NULL;}
-
-    //print arguments (debugging reasons)
-
-    printf("Arguments (%i):\n", i);
-    for(int j = 0; j < i; j++)
-        printf("\t%i) \t%s\n", j, args[j]);
-
-    //FILE* fp;
-    //printf("---before---\n");
-    //fp = freopen("pipe.txt", "w", stdout);    freopen doesn't exist
-    _gnrc_netif_config(i, args);
-    //fclose(fp);
-    //printf("---after---\n");
-
-    //printf("Killing process #%i\t(%s)\n\n", thread_getpid(), thread_getname(thread_getpid()));
-    return NULL;
-}
-
 static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
     // parse argument
     char uri[CONFIG_NANOCOAP_URI_MAX];
     int uri_len;
     uri_len = coap_get_uri_path(pkt, (uint8_t *)uri);
-        //printf("received uri: \"%s\"\n", uri);       //DEBUG
     char* arg = uri + strlen("/ifconfig/");
-    //int newVal = atoi(arg);
 
     //printf("DEBUG\treceived argument: %i\n", newVal);
     (void)uri_len;
     (void)context;
 
-    //printf("sending argument: \"%s\"\n", arg);
+    //TESTING SHELL ACCESSIBILITY>>>>>>>>>>>>>>>>>>>>>>>>>
+        print_dint();       //DINT DEBUG
+            printf("%-20s %s\n", "Command", "Description");
+            puts("---------------------------------------");
+            const shell_command_t *command_lists[] = {
+                    shell_commands,                             //TODO: Defend against undefined shell_commands
+        #ifdef MODULE_SHELL_COMMANDS
+                    _shell_command_list,
+        #endif
+            };
 
-    // FAILED MULTITHREADING EXPERIMENT
-    //pid_t child;
-    //char child_stack[THREAD_STACKSIZE_SMALL];   //try increasing by 1 (+1 on stack and size below)
-    //child = thread_create(child_stack, THREAD_STACKSIZE_SMALL, THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST, caller, arg, "ifconfig agent");
+            /* iterating over command_lists */
+            for (unsigned int i = 0; i < ARRAY_SIZE(command_lists); i++) {
 
-    if(caller(arg) == 0)
+                const shell_command_t *entry;
+
+                if ((entry = command_lists[i])) {
+                    /* iterating over commands in command_lists entry */
+                    while (entry->name != NULL) {
+                        printf("%-20s %s\n", entry->name, entry->desc);
+                        entry++;
+                    }printf("---End of list---\n");   //debug
+                } else {printf("ERROR: empty command list!\n");}    //debug
+            }
+    // END OF SHELL ACCESS TEST<<<<<<<<<<<<<<<<<<<<<<<
+
+    char* temp;
+    char* args[10];
+    char command[9] = "ifconfig";
+    args[0] = command; //set first argument
+    args[1] = arg;  //set second argument
+    int i = 1;
+    if (*arg != '\0')
+    {
+        while ((temp = strchr((char *) args[i++], (int) ' ')) != NULL && i < 10) //loop until last occurence
+        {
+            args[i] = temp;
+            *args[i] = '\0';    //exchange spaces with NULL characters
+            args[i]++; //shift to next character (instead of the space)
+        }
+        if (i >= 10 && strchr((char *) args[9], (int) ' ') != NULL) {
+            printf("ERROR: too many arguments for command handler");
+            char payload[29] = "Failure (too many arguments)";
+            return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t *) payload,
+                                     sizeof(payload));
+        }
+
+        //print arguments (debugging reasons)
+        printf("Arguments (%i):\n", i);
+        for (int j = 0; j < i; j++)
+            printf("\t%i) \t%s\n", j, args[j]);
+    }
+    else
+    {
+        printf("<*> Special case: no arguments <*>\n"); //debug
+        i = 1;
+    }
+    int result = _gnrc_netif_config(i, args);
+
+    if(result == 0)
     {
         char payload[8] = "Success";
         return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
@@ -284,7 +342,7 @@ const coap_resource_t coap_resources[] = {
     { "/riot/board", COAP_GET, _riot_board_handler, NULL },
     { "/riot/value", COAP_GET | COAP_PUT | COAP_POST, _riot_value_handler, NULL },
     { "/riot/ver", COAP_GET, _riot_block2_handler, NULL },
-    { "/sha256", COAP_POST, _sha256_handler, NULL },
+    //{ "/sha256", COAP_POST, _sha256_handler, NULL },
 };
 
 const unsigned coap_resources_numof = ARRAY_SIZE(coap_resources);

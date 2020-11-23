@@ -24,7 +24,8 @@
 
 #include <net/nanocoap_sock.h>
 
-#include "coap_handler.c"
+//#include "coap_handler.c"
+#include "extra.h"
 
 #define _IPV6_DEFAULT_PREFIX_LEN 64
 
@@ -35,8 +36,38 @@ char thread_stack[2048]; //THREAD_STACKSIZE_MAIN];
 
 kernel_pid_t coap_pid;
 
-static const shell_command_t shell_commands[] = 
+void check_extras(void)
 {
+    printf("[-][-][-] Extras memory position: %lx [-][-][-]\n", shell_commands);    //debug
+    printf("\t***Extra commands***\n");
+    const shell_command_t* peek = shell_commands;
+    if(peek->name == NULL) printf("\t\tNO EXTRA COMMANDS\n");
+    while(peek->name != NULL)
+    {
+        printf("\t\t%s, %s\n", peek->name, peek->desc);
+        peek = peek + 1;
+    }
+    printf("\t***End of Extras***\n");
+}
+
+int dud_handler(int argc, char** argv)
+{
+    (void)argc; (void)argv;
+    printf("hurr\n");
+    return 0;
+}
+
+int extra_handler(int argc, char**argv)
+{
+    (void)argc; (void)argv;
+    check_extras();
+    return 0;
+}
+
+const shell_command_t shell_commands[] =
+{
+        {"dud", "just for debugging", dud_handler},
+        {"extra", "check extra commands (ccoap-thread)", extra_handler},
 	{NULL, NULL, NULL}
 };
 
@@ -116,6 +147,8 @@ int main(void)
 
     /* start shell */
     puts("Border router running");
+
+    //set_extra_commands(shell_commands);
 
 	//initiate CoAP server
 	coap_pid = thread_create(thread_stack, sizeof(thread_stack), THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST, coaperator, NULL, "CoAP server thread");
