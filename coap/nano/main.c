@@ -7,8 +7,8 @@
  */
 
 /*
- * 6LoWPAN border router 
- * 
+ * 6LoWPAN border router
+ *
  * Assign static IPv6 prefix to WPAN interface
  * and become DODAG root on RPL instance
  */
@@ -96,7 +96,7 @@ static int add_iface_prefix(char *if_name, ipv6_addr_t *addr, uint8_t prefix_len
 }
 
 /*
- * Become RPL root on a given instance 
+ * Become RPL root on a given instance
  */
 static int add_rpl_root(ipv6_addr_t *addr, uint8_t instance_id) {
     gnrc_rpl_instance_t *inst = gnrc_rpl_root_init(instance_id, addr, false, false);
@@ -130,7 +130,7 @@ int main(void)
     start_rpl(RPL_STATIC_NETIF);
 
 
-     //Parse prefix and split into IPv6 address and prefix length 
+     //Parse prefix and split into IPv6 address and prefix length
 
     char ip6prefix[] = RPL_DODAG_ADDR;
     ipv6_addr_t addr;
@@ -143,7 +143,7 @@ int main(void)
     }
     add_iface_prefix(RPL_STATIC_NETIF, &addr, prefix_len);
     add_rpl_root(&addr, RPL_INSTANCE_ID);
-#endif // RPL_STATIC_NETIF 
+#endif // RPL_STATIC_NETIF
 
     /* start shell */
     puts("Border router running");

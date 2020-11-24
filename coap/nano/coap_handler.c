@@ -32,7 +32,7 @@ void print_dint(void)
     printf("checking threading (thread: %i):", thread_getpid());
     printf("\nDINT\n\t<**> <DEBUG> dint = %i,\t &dint = %lx,\t thread ID = %i <DEBUG> <**>\n", dint, &dint, thread_getpid);
     printf("\nEXTRAS\n\t <**> <DEBUG> extra = %lx,\t &extra = %lx,\t thread ID = %i <DEBUG> <**>\n", extra_shell_commands, &extra_shell_commands, thread_getpid());
-    
+
     return;
 }
 
@@ -237,13 +237,13 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 // NEW - remove threading   X
 // return result            /
 // figure out command list  X
-// generalize caller        O
-// retrieve command list
-// finalize
+// generalize caller        X
+// retrieve command list    X
+// finalize                 O
 //
 //NOTES:
 // How do I change stdout during ifconfig call?
-// 
+//
 extern int _gnrc_netif_config(int argc, char **argv);
 // full list of commands (excluding programmer-defined?) can be found in variable _shell_command_list
 // in directory RIOT/sys/shell/commands/shell_commands.c
@@ -260,8 +260,8 @@ static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, voi
     (void)uri_len;
     (void)context;
 
-    //TESTING SHELL ACCESSIBILITY>>>>>>>>>>>>>>>>>>>>>>>>>
-        print_dint();       //DINT DEBUG
+    // TESTING SHELL ACCESSIBILITY>>>>>>>>>>>>>>>>>>>>>>>>>
+        //print_dint();       //DINT DEBUG
             printf("%-20s %s\n", "Command", "Description");
             puts("---------------------------------------");
             const shell_command_t *command_lists[] = {
@@ -271,13 +271,13 @@ static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, voi
         #endif
             };
 
-            /* iterating over command_lists */
+            // iterating over command_lists
             for (unsigned int i = 0; i < ARRAY_SIZE(command_lists); i++) {
 
                 const shell_command_t *entry;
 
                 if ((entry = command_lists[i])) {
-                    /* iterating over commands in command_lists entry */
+                    // iterating over commands in command_lists entry
                     while (entry->name != NULL) {
                         printf("%-20s %s\n", entry->name, entry->desc);
                         entry++;
@@ -332,6 +332,85 @@ static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, voi
 
 }
 
+static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
+{
+    #define MAX_ARGUMENTS 10
+    //PARSE URI
+    char* args[MAX_ARGUMENTS];
+    char arg[CONFIG_NANOCOAP_URI_MAX];
+    int uri_len;
+    uri_len = coap_get_uri_path(pkt, (uint8_t *)arg);
+    args[0] = arg + strlen("/shell/");
+    (void) uri_len;
+    (void) context;
+    //COLLECT ARGUMENTS
+    int count = 0;
+    char* brk = args[0];
+    /*while((brk = strtok(args[i], ' ')) != NULL)   //get pointer to first WHITESPACE ' '
+    {
+      if((brk + 1)* == '\0')
+        break;
+
+    }*/
+    while(brk != '\0' && count < MAX_ARGUMENTS - 1)      //cycle through the entire argument string
+    {
+      if(*brk == ' ')       //at every whitespace...
+      {
+        *brk = '\0';        //insert a string-termination character
+        args[++count] = brk + 1; //add next character as beginning of next argument
+      }
+      brk++;  //increment pointer
+    }
+    count++;  //reverse 0-indexing offset
+
+    //*DEBUG
+    printf("\n---Arguments:\n");
+    for(int i = 0; i < count; i++)
+      {printf("\targs[%i]:\t%s\n", i, args[i]);}
+    printf("\n");
+    //DEBUG*/
+
+    //CALL FUNCTION
+    const shell_command_t *command_lists[] = {
+            shell_commands,                             //TODO: Defend against undefined shell_commands
+#ifdef MODULE_SHELL_COMMANDS
+            _shell_command_list,
+#endif
+    };
+
+    int result = -123;
+    /* iterating over command_lists */
+    for (unsigned int i = 0; i < ARRAY_SIZE(command_lists) && result == -123; i++) {
+
+        const shell_command_t *entry;
+
+        if (!(entry = command_lists[i])) { continue; }
+            /* iterating over commands in command_lists entry */
+        while (entry->name != NULL) {
+          if(strcmp(entry->name, args[0]) == 0)
+          {
+            printf("FOUND FUNCTION: %s,\t%s\n", entry->name, entry->desc);
+            result = entry->handler(count, args); // Call function
+            break;
+          }
+          entry++;
+        }
+    }
+
+    //RETURN DEMI-RESULT
+    if(result == 0)
+    {
+        char payload[8] = "Success";
+        return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+    }
+    else
+    {
+        char payload[8] = "Failure";
+        return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+    }
+}
+
+
 // ===== END OF WORK AREA ===== //
 
 /* must be sorted by path (ASCII order) */
@@ -342,6 +421,7 @@ const coap_resource_t coap_resources[] = {
     { "/riot/board", COAP_GET, _riot_board_handler, NULL },
     { "/riot/value", COAP_GET | COAP_PUT | COAP_POST, _riot_value_handler, NULL },
     { "/riot/ver", COAP_GET, _riot_block2_handler, NULL },
+    { "/shell/", COAP_PUT | COAP_GET | COAP_MATCH_SUBTREE, _shell_handler, NULL},    //mine
     //{ "/sha256", COAP_POST, _sha256_handler, NULL },
 };
 
