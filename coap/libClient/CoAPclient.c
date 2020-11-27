@@ -39,7 +39,7 @@ void simple_resp_handler (struct coap_context_t *context, coap_session_t *sessio
             "\tCode:\t%i.%i\n", id, -1, *type, codeClass, codeDetail);
 	if(received->data != 0) printf("\tPayload:\n\t\t%s\n", received->data);
 	else printf("\tPayload: none\n");
-	
+
 	return;
 }
 
@@ -66,37 +66,37 @@ int main (int argc, char* argv[])
     else if(strcmp("get", argv[4]) == 0 || strcmp("GET", argv[4]) == 0)
         code = COAP_REQUEST_GET;
     else code = COAP_REQUEST_GET; //temp fix
-	
-	
+
+
 	coap_context_t* ctx = nullptr;
 	coap_session_t* session = nullptr;
 	coap_address_t dst;
 	coap_pdu_t* pdu = nullptr;
 	int result = EXIT_FAILURE;
-	
+
 	coap_startup();
 
 
     //printf("DEBUG: STARTUP");
 
-	
+
 	if(resolve_address(addr, port, &dst) < 0)			//call function in resolveAdd.cpp to resolve address and port into a coap_address struct
 	{
 		coap_log(LOG_CRIT, "failed to resolve address\n");
 		goto finish;
 	}
-		
+
 	ctx = coap_new_context(nullptr);									//create CoAP context
 	session = coap_new_client_session(ctx, nullptr, &dst, COAP_PROTO_UDP);	//create CoAP session
 	if(!ctx || !session)
 	{
 		coap_log(LOG_EMERG, "cannot create client session\n");
-		goto finish;		
+		goto finish;
 	}
 
     //register response handler
     coap_register_response_handler(ctx, simple_resp_handler);
-	
+
 	//Construct CoAP message	(pdu seems to represent the CoAP datagram)
 	pdu = coap_pdu_init(COAP_MESSAGE_CON, code, 0 /*message ID (for ACK-matching)*/, coap_session_max_pdu_size(session));
 	if(!pdu)
@@ -104,14 +104,14 @@ int main (int argc, char* argv[])
 		coap_log(LOG_EMERG, "cannot create PDU\n");
 		goto finish;
 	}
-	
+
 	//add a URI-path option
-	if(coap_add_option(pdu, COAP_OPTION_URI_PATH, strlen(msg), /* reinterpret_cast<const uint8_t*>(msg) */ (const uint8_t*)msg) == COAP_INVALID_TID)
+	if(coap_add_option(pdu, COAP_OPTION_URI_PATH, strlen(msg), (const uint8_t*)msg) == (size_t)COAP_INVALID_TID)
 	{
 		coap_log(LOG_EMERG, "failed to send message");
 		goto finish;
 	}
-	
+
 
 	coap_send(session, pdu); //send the pdu
 
@@ -123,13 +123,29 @@ int main (int argc, char* argv[])
 	while(1)
 	{
         //printf("DEBUG: LOOPING");
-		res = coap_io_process(ctx, 0);	//not sure what this is ("main message processing loop" according to documentation) (Replaced depricated function coap_run_once)	
+		res = coap_io_process(ctx, 0);	//not sure what this is ("main message processing loop" according to documentation) (Replaced depricated function coap_run_once)
 
 		//internal error
 		if(res < 0)
 			break;
 
         fgets(input, MAXINPUT, stdin); //read up to 100 characters from standard input
+
+				//printf("purging...\n");
+				//purge newline characters
+			  char* c = input;
+				//int debbyindy = 0;
+				while(*c != '\0')
+				{
+		      //printf("\n\targ[%i]:\t%c\t(%i)", debbyindy++, *c, (int)*c);
+					if(*c == '\n')
+						{
+							//printf("\t\treplacing...");
+							*c = 0;
+						}
+					c++;
+				}
+				//printf("\npurge complete\n");
 
         //Construct CoAP message	(pdu seems to represent the CoAP datagram)
         pdu = coap_pdu_init(COAP_MESSAGE_CON, code, id++ /*message ID (for ACK-matching)*/, coap_session_max_pdu_size(session));
@@ -140,7 +156,7 @@ int main (int argc, char* argv[])
         }
 
         //add a URI-path option
-        if(coap_add_option(pdu, COAP_OPTION_URI_PATH, strlen(input), /* reinterpret_cast<const uint8_t*>(msg) */ (const uint8_t*)input) == COAP_INVALID_TID)
+        if(coap_add_option(pdu, COAP_OPTION_URI_PATH, strlen(input), (const uint8_t*)input) == (size_t)COAP_INVALID_TID)
         {
             coap_log(LOG_EMERG, "failed to send message");
             goto finish;
@@ -148,13 +164,13 @@ int main (int argc, char* argv[])
 
         coap_send(session, pdu); //send the pdu
 	}
-	
+
 	result = EXIT_SUCCESS;
 finish:
-	 
+
 	 coap_session_release(session);
 	 coap_free_context(ctx);
 	 coap_cleanup();
-	 
+
 	 return result;
 }

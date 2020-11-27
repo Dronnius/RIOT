@@ -24,17 +24,19 @@
 
 /* internal value that can be read/written via CoAP */
 static uint8_t internal_value = 0;
-static const shell_command_t * extra_shell_commands = NULL;
-int dint = 3;
 
-void print_dint(void)
+//debugging stuff:
+//static const shell_command_t * extra_shell_commands = NULL;
+//int dint = 3;
+
+/*void print_dint(void)
 {
     printf("checking threading (thread: %i):", thread_getpid());
     printf("\nDINT\n\t<**> <DEBUG> dint = %i,\t &dint = %lx,\t thread ID = %i <DEBUG> <**>\n", dint, &dint, thread_getpid);
     printf("\nEXTRAS\n\t <**> <DEBUG> extra = %lx,\t &extra = %lx,\t thread ID = %i <DEBUG> <**>\n", extra_shell_commands, &extra_shell_commands, thread_getpid());
 
     return;
-}
+}*/
 
 
 /*DEBUG        //FOR SOME REASON (PROBABLY DUE TO THREADING) THE SHELL AND THE SERVER HAVE DIFFERENT ADDRESSES FOR THE EXTRA COMMANDS
@@ -53,12 +55,12 @@ void check_extras(void)
 }
 //DEBUG*/
 
-void set_extra_commands(const shell_command_t* extras)
+/*void set_extra_commands(const shell_command_t* extras)
 {
     if( extras != NULL)
         extra_shell_commands = extras;
     check_extras(); //debug
-}
+}*/
 /*DEBUG
 void wait_until_issue(void)
 {
@@ -121,7 +123,7 @@ static ssize_t _riot_block2_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, v
     bufpos += coap_opt_put_block2(bufpos, COAP_OPT_CONTENT_FORMAT, &slicer, 1);
     *bufpos++ = 0xff;
 
-    /* Add actual content */
+    // Add actual content
     bufpos += coap_blockwise_put_bytes(&slicer, bufpos, block2_intro, sizeof(block2_intro)-1);
     bufpos += coap_blockwise_put_bytes(&slicer, bufpos, (uint8_t*)RIOT_VERSION, strlen(RIOT_VERSION));
     bufpos += coap_blockwise_put_char(&slicer, bufpos, ')');
@@ -129,7 +131,7 @@ static ssize_t _riot_block2_handler(coap_pkt_t *pkt, uint8_t *buf, size_t len, v
     bufpos += coap_blockwise_put_bytes(&slicer, bufpos, (uint8_t*)RIOT_BOARD, strlen(RIOT_BOARD));
     bufpos += coap_blockwise_put_bytes(&slicer, bufpos, block2_mcu, sizeof(block2_mcu)-1);
     bufpos += coap_blockwise_put_bytes(&slicer, bufpos, (uint8_t*)RIOT_MCU, strlen(RIOT_MCU));
-    /* To demonstrate individual chars */
+    // To demonstrate individual chars
     bufpos += coap_blockwise_put_char(&slicer, bufpos, ' ');
     bufpos += coap_blockwise_put_char(&slicer, bufpos, 'M');
     bufpos += coap_blockwise_put_char(&slicer, bufpos, 'C');
@@ -239,16 +241,16 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 // figure out command list  X
 // generalize caller        X
 // retrieve command list    X
-// finalize                 O
+// finalize                 X
 //
 //NOTES:
 // How do I change stdout during ifconfig call?
 //
-extern int _gnrc_netif_config(int argc, char **argv);
+//extern int _gnrc_netif_config(int argc, char **argv);
 // full list of commands (excluding programmer-defined?) can be found in variable _shell_command_list
 // in directory RIOT/sys/shell/commands/shell_commands.c
 
-static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
+/*static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
     // parse argument
     char uri[CONFIG_NANOCOAP_URI_MAX];
@@ -330,7 +332,7 @@ static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, voi
         return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
     }
 
-}
+}*/
 
 static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
@@ -339,7 +341,7 @@ static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *
     char* args[MAX_ARGUMENTS];
     char arg[CONFIG_NANOCOAP_URI_MAX];
     int uri_len;
-    uri_len = coap_get_uri_path(pkt, (uint8_t *)arg);
+    uri_len = coap_get_uri_path(pkt, (uint8_t *)arg) - strlen("/shell/");
     args[0] = arg + strlen("/shell/");
     (void) uri_len;
     (void) context;
@@ -352,8 +354,10 @@ static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *
         break;
 
     }*/
-    while(brk != '\0' && count < MAX_ARGUMENTS - 1)      //cycle through the entire argument string
+    int i = 0;
+    while(i++ < uri_len && count < MAX_ARGUMENTS - 1)      //cycle through the entire argument string
     {
+      //printf("arg[%i]:\t%c\t(%i)\n", i, *brk, (int)*brk); //DEBUG
       if(*brk == ' ')       //at every whitespace...
       {
         *brk = '\0';        //insert a string-termination character
@@ -362,10 +366,11 @@ static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *
       brk++;  //increment pointer
     }
     count++;  //reverse 0-indexing offset
+    //printf("\n#-#-#: # of arguments : %i #-#-#\n", count);  //DEBUG
 
     //*DEBUG
     printf("\n---Arguments:\n");
-    for(int i = 0; i < count; i++)
+    for(i = 0; i < count; i++)
       {printf("\targs[%i]:\t%s\n", i, args[i]);}
     printf("\n");
     //DEBUG*/
@@ -403,11 +408,123 @@ static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *
         char payload[8] = "Success";
         return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
     }
+    else if (result == -123)
+    {
+        char payload[] = "Failure: Function not found.";
+        printf("%s\n", payload);
+        return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+    }
     else
     {
         char payload[8] = "Failure";
+        printf("%s\n", payload);
         return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
     }
+}
+
+//const coap_resource_t coap_resources[]; //declaration
+
+static ssize_t _help_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
+{
+	#define RESPONSE_BUFFER_SIZE 500
+	char response[RESPONSE_BUFFER_SIZE];
+	(void) pkt;
+	(void) buf;
+	(void) len;
+	(void) context;
+
+	//loop through coap resources
+		//@ "/shell/", also loop through all shell commands
+	unsigned int respIndex = 0;
+	unsigned int s_len;
+	//int respSize = 0;
+	//coap_resource_t resource = coap_resources[0];
+	for(unsigned int i = 0; i < coap_resources_numof; i++)
+	{
+		s_len = strlen(coap_resources[i].path) - 1; // get length of resource path, minus one to remove preceeding '/' character (answer does NOT include terminating null-character)
+
+		//handle excess data
+		if( respIndex + s_len + 1 >= sizeof(response))	// if end of response buffer is reached (+1 for \n that shall be inserted)	(NO TERMINATING NULL CHARACTER INCLUDED, NOT SURE IF NEEDED)
+		{
+			/*response[respIndex - 1] = '\0';	// -1 to overwrite \n (hopefully)
+			printf("response #%i:\n%s\n", i + 1, response);
+			respSize += coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)response, respIndex);
+			respIndex = 0;*/
+			printf(">-- HELP ERROR: Response buffer of %i bytes exceeded!\n", RESPONSE_BUFFER_SIZE);
+			char payload[] = "Server error: too much data";
+			return coap_reply_simple(pkt, coap_code(5, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+		}
+
+		//add string to response buffer (remove terminating null-character and preceeding '/'-character(that's the +1) )
+		strcpy( (response + respIndex), (coap_resources[i].path + 1) );
+		respIndex += s_len;		// increment respIndex by length of path (excluding preceeding '/')
+
+		//add a newline!
+		*(response + respIndex) = '\n';
+		respIndex++;
+
+		//if it was "/shell/"...
+		if(strcmp(coap_resources[i].path, "/shell/") == 0)
+		{
+			    const shell_command_t *command_lists[] = {
+				    shell_commands,                             //TODO: Defend against undefined shell_commands
+			#ifdef MODULE_SHELL_COMMANDS
+				    _shell_command_list,
+			#endif
+			    };
+
+			    // iterating over command_lists
+			    for (unsigned int j = 0; j < ARRAY_SIZE(command_lists); j++) {
+					//printf("value of j: %i\n", j);
+
+					const shell_command_t *entry;
+					//unsigned int d_len;
+
+					if ((entry = command_lists[j])) {
+						    // iterating over commands in command_lists entry
+						    while (entry->name != NULL) {
+								//printf("%-20s %s\n", entry->name, entry->desc);
+
+								s_len = strlen(entry->name); // get length of command name (answer does NOT include terminating null-character)
+								//d_len = strlen(entry->desc); // get length of command description (answer does NOT include terminating null-character)
+
+								//handle excess data
+								if( respIndex + s_len + /*d_len + 4 +*/ 2 + strlen("shell/") >= sizeof(response))	// if end of response buffer is reached (+1 for \n that shall be inserted, +2 for 3 * \t to be inserted)
+								{
+									printf(">-- HELP ERROR: Response buffer of %i bytes exceeded!\n", RESPONSE_BUFFER_SIZE);
+									char payload[] = "Server error: too much data";
+									return coap_reply_simple(pkt, coap_code(5, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+								}
+
+
+								//add prefix to response buffer
+								strcpy( (response + respIndex), "\tshell/" );
+								respIndex += strlen("\tshell/");
+								//add name to response buffer
+								strcpy( (response + respIndex), (entry->name) );
+								respIndex += s_len;		// increment respIndex by length of path
+								//add two tab-characters!
+								//strcpy( (response + respIndex), "\t\t" );
+								//respIndex += 2;
+								//add description to response buffer
+								//strcpy( (response + respIndex), (entry->desc) );
+								//respIndex += d_len;		// increment respIndex by length of path
+								//add a newline!
+								*(response + respIndex) = '\n';
+								respIndex++;
+
+								entry++;
+						    }//printf("---End of list---\n");   //debug
+					}// else {printf("ERROR: empty command list!\n");}    //debug
+			    }
+		}
+
+
+	}
+
+	response[respIndex - 1] = '\0';
+	printf("Response:\n%s\n", response);
+	return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)response, respIndex);
 }
 
 
@@ -417,7 +534,8 @@ static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *
 const coap_resource_t coap_resources[] = {
     COAP_WELL_KNOWN_CORE_DEFAULT_HANDLER,
     { "/echo/", COAP_GET | COAP_MATCH_SUBTREE, _echo_handler, NULL },
-    { "/ifconfig/", COAP_PUT | COAP_MATCH_SUBTREE, _ifconfig_handler, NULL},    //mine
+    { "/help", COAP_GET, _help_handler, NULL },         //mine
+    //{ "/ifconfig/", COAP_PUT | COAP_MATCH_SUBTREE, _ifconfig_handler, NULL},    //mine
     { "/riot/board", COAP_GET, _riot_board_handler, NULL },
     { "/riot/value", COAP_GET | COAP_PUT | COAP_POST, _riot_value_handler, NULL },
     { "/riot/ver", COAP_GET, _riot_block2_handler, NULL },
