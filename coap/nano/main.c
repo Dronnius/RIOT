@@ -154,6 +154,11 @@ int main(void)
 	coap_pid = thread_create(thread_stack, sizeof(thread_stack), THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST, coaperator, NULL, "CoAP server thread");
 	//coaperator(NULL);
 
+    //casting test
+    //uint16_t a = 0xabcd;
+    //uint8_t b = (uint8_t) a;
+    //printf("a =\t%i\t0x%x\nb =\t%i\t0x%x", a, a, b, b);
+
     puts("All up, running the shell now");
     char line_buf[SHELL_DEFAULT_BUFSIZE];
     shell_run(shell_commands, line_buf, SHELL_DEFAULT_BUFSIZE);

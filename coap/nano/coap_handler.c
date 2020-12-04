@@ -19,6 +19,9 @@
 #include "net/nanocoap.h"
 //#include "hashes/sha256.h"
 #include "extra.h"
+#include "../../sys/include/net/netif.h"	//ugly, hopefully temporary solution
+#include "../../sys/include/net/gnrc/netif.h"	//ugly, hopefully temporary solution
+#include "../../sys/include/net/gnrc/netapi.h"	//ugly, hopefully temporary solution
 
 #define ENABLE_DEBUG (1)
 
@@ -231,129 +234,154 @@ ssize_t _sha256_handler(coap_pkt_t* pkt, uint8_t *buf, size_t len, void *context
 */
 
 // ===== WORK IN PROGRESS ===== //
-
-//TODO:
-// parse arguments          X
-// move to thread           X
-// execute with arguments   X
-// NEW - remove threading   X
-// return result            /
-// figure out command list  X
-// generalize caller        X
-// retrieve command list    X
-// finalize                 X
-//
-//NOTES:
-// How do I change stdout during ifconfig call?
-//
-//extern int _gnrc_netif_config(int argc, char **argv);
-// full list of commands (excluding programmer-defined?) can be found in variable _shell_command_list
-// in directory RIOT/sys/shell/commands/shell_commands.c
-
-/*static ssize_t _ifconfig_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
+int readArgs (char* source, int sourceLen, char** args, int maxArgs)
 {
-    // parse argument
-    char uri[CONFIG_NANOCOAP_URI_MAX];
-    int uri_len;
-    uri_len = coap_get_uri_path(pkt, (uint8_t *)uri);
-    char* arg = uri + strlen("/ifconfig/");
+	//printf("debuggy: A\n");		//DEBUG
+	if (maxArgs < 1 || sourceLen < 1) return -1;
 
-    //printf("DEBUG\treceived argument: %i\n", newVal);
-    (void)uri_len;
-    (void)context;
-
-    // TESTING SHELL ACCESSIBILITY>>>>>>>>>>>>>>>>>>>>>>>>>
-        //print_dint();       //DINT DEBUG
-            printf("%-20s %s\n", "Command", "Description");
-            puts("---------------------------------------");
-            const shell_command_t *command_lists[] = {
-                    shell_commands,                             //TODO: Defend against undefined shell_commands
-        #ifdef MODULE_SHELL_COMMANDS
-                    _shell_command_list,
-        #endif
-            };
-
-            // iterating over command_lists
-            for (unsigned int i = 0; i < ARRAY_SIZE(command_lists); i++) {
-
-                const shell_command_t *entry;
-
-                if ((entry = command_lists[i])) {
-                    // iterating over commands in command_lists entry
-                    while (entry->name != NULL) {
-                        printf("%-20s %s\n", entry->name, entry->desc);
-                        entry++;
-                    }printf("---End of list---\n");   //debug
-                } else {printf("ERROR: empty command list!\n");}    //debug
-            }
-    // END OF SHELL ACCESS TEST<<<<<<<<<<<<<<<<<<<<<<<
-
-    char* temp;
-    char* args[10];
-    char command[9] = "ifconfig";
-    args[0] = command; //set first argument
-    args[1] = arg;  //set second argument
-    int i = 1;
-    if (*arg != '\0')
+	char* brk = source;
+	args[0] = source;
+	int i = 0, count = 1;
+		//printf("debuggy: B\n");		//DEBUG
+	while(i++ < sourceLen && count < maxArgs)      //cycle through the entire argument string
     {
-        while ((temp = strchr((char *) args[i++], (int) ' ')) != NULL && i < 10) //loop until last occurence
-        {
-            args[i] = temp;
-            *args[i] = '\0';    //exchange spaces with NULL characters
-            args[i]++; //shift to next character (instead of the space)
-        }
-        if (i >= 10 && strchr((char *) args[9], (int) ' ') != NULL) {
-            printf("ERROR: too many arguments for command handler");
-            char payload[29] = "Failure (too many arguments)";
-            return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t *) payload,
-                                     sizeof(payload));
-        }
-
-        //print arguments (debugging reasons)
-        printf("Arguments (%i):\n", i);
-        for (int j = 0; j < i; j++)
-            printf("\t%i) \t%s\n", j, args[j]);
+		//printf("debuggy: C.%i\n", i);		//DEBUG
+		//printf("arg[%i]:\t%c\t(%i)\n", i, *brk, (int)*brk); //DEBUG
+		if(*brk == ' ')       //at every whitespace
+		{
+			*brk = '\0';        //insert a string-termination character
+			if(*(brk + 1) == '\0' || i >= sourceLen)	//in case of trailing whitespace/slash
+				break;
+			args[count++] = brk + 1; //add next character as beginning of next argument
+			if(count >= maxArgs)	//if max arguments reached, cut of remainder
+			{
+				do {
+					brk++;
+					if(*brk == ' ')
+						*brk = '\0';
+				} while(*brk != '\0');
+				break;
+			}
+		}
+		brk++;  //increment pointer
     }
-    else
-    {
-        printf("<*> Special case: no arguments <*>\n"); //debug
-        i = 1;
-    }
-    int result = _gnrc_netif_config(i, args);
+		//printf("debuggy: D\n");		//DEBUG
 
-    if(result == 0)
+	    //*DEBUG
+	    printf("\n---Arguments:\n");
+	    for(i = 0; i < count; i++)
+	      {printf("\targs[%i]:\t%s\n", i, args[i]);}
+	    printf("\n");
+	    //DEBUG*/
+
+    return count;  //reverse 0-indexing offset
+}
+
+static ssize_t _channel_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void* context)
+{
+	//PARSE URI
+	char* args[] =  {NULL, NULL};
+    char source[CONFIG_NANOCOAP_URI_MAX];
+    int sourceLen = coap_get_uri_path(pkt, (uint8_t *)source) - strlen("/config/channel/");
+    (void) context;
+	(void) len;
+	(void) buf;
+
+	int count = readArgs(source + strlen("/config/channel/"), sourceLen, args, 2);
+	//DIVIDE INTO ARGUMENTS
+	/*args[0] = arg + strlen("/config/channel/");
+    //int count = 0;
+    char* brk = args[0];
+    int i = 0;
+	short done = false;
+    while(i++ < uri_len)      //cycle through the entire argument string
     {
-        char payload[8] = "Success";
+		//printf("arg[%i]:\t%c\t(%i)\n", i, *brk, (int)*brk); //DEBUG
+		if(*brk == ' ' || *brk == '/')       //at every whitespace or slash...
+		{
+			*brk = '\0';     //insert a string-termination character
+			if(done)
+				break;
+			args[1] = brk + 1; //add next character as beginning of next argument
+			done = true;
+		}
+		brk++;  //increment pointer
+    }
+	//count++;	//offset 0-index
+
+	//DEBUG
+    printf("\n---Arguments:\n");
+    for(i = 0; i < 2; i++)
+      {printf("\targs[%i]:\t%s\n", i, args[i]);}
+    printf("\n");
+    //DEBUG*/
+
+	//Validate arguments
+	if(count < 2)	//respond with format
+	{
+        char payload[] = "PUT usage: config/channel/[interface] [new value]";
         return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
     }
-    else
-    {
-        char payload[8] = "Failure";
-        return coap_reply_simple(pkt, COAP_CODE_204, buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
-    }
+		//note: check interface matches, and value is... a value
+	netif_t* iface = netif_get_by_name(args[0]);
+	if (!iface)
+	{
+        char payload[] = "Failure: Invalid interface";
+		printf("%s\n", payload);
+        return coap_reply_simple(pkt, coap_code(4, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+	}
+	if (!fmt_is_number(args[1])) //negative values shouldd fail here also
+	{
+	        char payload[] = "Failure: Invalid value, must be a 16-bit unsigned integer";
+			printf("%s\n", payload);
+	        return coap_reply_simple(pkt, coap_code(4, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+	}
+	printf("testy\n");
+	uint16_t value = (uint16_t)(0x0ffff & strtoul(args[1], NULL, 10));
+	if(value == 0 && *args[1] != '0')	//if
+	{
+	        char payload[] = "Failure: Value failed to convert into 16-bit unsigned integer";
+			printf("%s\n", payload);
+	        return coap_reply_simple(pkt, coap_code(4, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+	}
+    //gnrc_netif_t *iface = (gnrc_netif_t*) netif;
 
-}*/
+	//set new value
+    if(_gnrc_netapi_get_set(((gnrc_netif_t*)iface)->pid, NETOPT_CHANNEL, 0, &value, sizeof(uint16_t), GNRC_NETAPI_MSG_TYPE_SET) < 0)	//fail
+	{
+		char payload[] = "Failure: New channel value could not be set";
+		printf("%s\n", payload);
+		return coap_reply_simple(pkt, coap_code(4, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+	}
+	else //success
+	{
+		char payload[] = "Success: New channel value set";
+	  printf("%s\n", payload);
+	  return coap_reply_simple(pkt, coap_code(2, 4), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+	}
+}
 
 static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *context)
 {
-    #define MAX_ARGUMENTS 10
+    const int maxArgs = 10;
     //PARSE URI
-    char* args[MAX_ARGUMENTS];
-    char arg[CONFIG_NANOCOAP_URI_MAX];
-    int uri_len;
-    uri_len = coap_get_uri_path(pkt, (uint8_t *)arg) - strlen("/shell/");
-    args[0] = arg + strlen("/shell/");
-    (void) uri_len;
+    char* args[maxArgs];
+    char source[CONFIG_NANOCOAP_URI_MAX];
+	int sourceLen = coap_get_uri_path(pkt, (uint8_t *)source) - strlen("/shell/");
+    //args[0] = source + strlen("/shell/");
     (void) context;
     //COLLECT ARGUMENTS
-    int count = 0;
-    char* brk = args[0];
-    /*while((brk = strtok(args[i], ' ')) != NULL)   //get pointer to first WHITESPACE ' '
-    {
-      if((brk + 1)* == '\0')
-        break;
+	int argCount = readArgs(source + strlen("/shell/"), sourceLen, args, maxArgs);
+	if(argCount == -1)	//if error reading arguments
+	{
+		printf("\n");
+	        char payload[] = "Failure:\t\tError reading arguments";
+	        printf("%s\n", payload);
+	        return coap_reply_simple(pkt, coap_code(4, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
+	}
 
-    }*/
+    /*int count = 0;
+    char* brk = args[0];
     int i = 0;
     while(i++ < uri_len && count < MAX_ARGUMENTS - 1)      //cycle through the entire argument string
     {
@@ -367,8 +395,8 @@ static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *
     }
     count++;  //reverse 0-indexing offset
     //printf("\n#-#-#: # of arguments : %i #-#-#\n", count);  //DEBUG
-
-    //*DEBUG
+*/
+    /*DEBUG
     printf("\n---Arguments:\n");
     for(i = 0; i < count; i++)
       {printf("\targs[%i]:\t%s\n", i, args[i]);}
@@ -395,7 +423,7 @@ static ssize_t _shell_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *
           if(strcmp(entry->name, args[0]) == 0)
           {
             printf("FOUND FUNCTION: %s,\t%s\n", entry->name, entry->desc);
-            result = entry->handler(count, args); // Call function
+            result = entry->handler(argCount, args); // Call function
             break;
           }
           entry++;
@@ -535,7 +563,7 @@ const coap_resource_t coap_resources[] = {
     COAP_WELL_KNOWN_CORE_DEFAULT_HANDLER,
     { "/echo/", COAP_GET | COAP_MATCH_SUBTREE, _echo_handler, NULL },
     { "/help", COAP_GET, _help_handler, NULL },         //mine
-    //{ "/ifconfig/", COAP_PUT | COAP_MATCH_SUBTREE, _ifconfig_handler, NULL},    //mine
+    { "/config/channel/", COAP_GET | COAP_PUT | COAP_MATCH_SUBTREE, _channel_handler, NULL},    //mine
     { "/riot/board", COAP_GET, _riot_board_handler, NULL },
     { "/riot/value", COAP_GET | COAP_PUT | COAP_POST, _riot_value_handler, NULL },
     { "/riot/ver", COAP_GET, _riot_block2_handler, NULL },
