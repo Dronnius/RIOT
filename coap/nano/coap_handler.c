@@ -247,7 +247,7 @@ int readArgs (char* source, int sourceLen, char** args, int maxArgs)
     {
 		//printf("debuggy: C.%i\n", i);		//DEBUG
 		//printf("arg[%i]:\t%c\t(%i)\n", i, *brk, (int)*brk); //DEBUG
-		if(*brk == ' ')       //at every whitespace
+		if(*brk == ' ')       //at every whitespace OR (back)slash
 		{
 			*brk = '\0';        //insert a string-termination character
 			if(*(brk + 1) == '\0' || i >= sourceLen)	//in case of trailing whitespace/slash
@@ -330,13 +330,13 @@ static ssize_t _channel_handler (coap_pkt_t *pkt, uint8_t *buf, size_t len, void
 		printf("%s\n", payload);
         return coap_reply_simple(pkt, coap_code(4, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
 	}
-	if (!fmt_is_number(args[1])) //negative values shouldd fail here also
+	if (!fmt_is_number(args[1])) //negative values should fail here also
 	{
 	        char payload[] = "Failure: Invalid value, must be a 16-bit unsigned integer";
 			printf("%s\n", payload);
 	        return coap_reply_simple(pkt, coap_code(4, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
 	}
-	printf("testy\n");
+	//printf("testy\n");
 	uint16_t value = (uint16_t)(0x0ffff & strtoul(args[1], NULL, 10));
 	if(value == 0 && *args[1] != '0')	//if
 	{
