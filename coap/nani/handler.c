@@ -25,9 +25,10 @@ typedef struct
 //uint32_t u16_setget (netif_t* iface, netopt_t op, char* val);
 
 const netopt_unit netopt_units[] = {
-	{"channel", NETOPT_CHANNEL, 2},//u16_setget},
-	{"frequency", NETOPT_CHANNEL_FREQUENCY, 4},
-	{"hop_limit", NETOPT_HOP_LIMIT, 1}//u8_setget}
+	{"auto_ack", NETOPT_AUTOACK, 0},	//example of boolean variable, (1 or 0)
+	{"channel", NETOPT_CHANNEL, 2},		//u16_setget},
+	{"hop_limit", NETOPT_HOP_LIMIT, 1},	//u8_setget}
+	{"random", NETOPT_RANDOM, 4},		//doesn't seem to be in use
 };
 const unsigned short netopt_units_numof = ARRAY_SIZE(netopt_units);
 
@@ -127,8 +128,10 @@ static ssize_t netGetter (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *conte
 		{
 			//printf("Hi, you requested to see the \"%s\" resource, of interface \"%s\".\nReading you load and clear!\n", args[1], args[0]);
 			uint32_t result = 0;	//memory space reserved for answer
+			uint8_t size = netopt_units[i].size; 	//save size
+			if (!size)	size++;	//compensate if size = 0 (boolean property)
 			//void* result = (void*)&space;//((char*)&space + (sizeof(space) - netopt_units[i].size));	//offset depending on size
-			_gnrc_netapi_get_set(((gnrc_netif_t*)iface)->pid, netopt_units[i].op, 0, &result, netopt_units[i].size, GNRC_NETAPI_MSG_TYPE_GET);
+			_gnrc_netapi_get_set(((gnrc_netif_t*)iface)->pid, netopt_units[i].op, 0, &result, size, GNRC_NETAPI_MSG_TYPE_GET);
 
 			//DEBUG: print byte-values byte, by byte
 			printf("===== ===== ===== ===== =====\nMEMORY IMAGE:\nbyte:\t\t\t\tvalue\n");
@@ -193,12 +196,17 @@ static ssize_t netSetter (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *conte
 	// At this point, netopt_units[i] should refer to the correct unit
 	//HANDLE FOURTH ARGUMENT Z: /netif/X/Y/Z
 	uint32_t value;
-	if(args[2][0] == 'x' || args[2][1] == 'x')
-		value = scn_u32_hex(args[2], strlen(args[2]));
+	if(args[2][1] == 'x')
+		value = scn_u32_hex(args[2] + 2, strlen(args[2]) - 2);
 	else value = scn_u32_dec(args[2], strlen(args[2]));
 
-	//ERROR HERE: 5, IS SOMEHOW NOT CONSISDERED REPRESENTABLE BY 4 BYTES	(ALSO, SE IF YOU CAN RESET STACKSIZE IN MAIN.C)
-	if(value >= 1ul << (8 * netopt_units[i].size))	//if value exceeds what the property's (byte) size could hold
+	//APPARENTLY, RIOT, OR THIS MACHINE, CAN'T REPRESENT VALUES OF MORE THAN 4 bytes
+	if (!netopt_units[i].size)	printf("boolean property, no comparison\n");
+	else if(netopt_units[i].size != 4)
+		printf("%lu\t<\t%lu\n", value, (1lu << (netopt_units[i].size << 3)));
+	else
+		printf("4 bytes of data, no size comparison done\n");
+	if(value >= (1lu << (netopt_units[i].size << 3)) && netopt_units[i].size != 4 && netopt_units[i].size != 0)	//if value exceeds what the property's (byte) size could hold
 	{
 		char payload[50];
 		sprintf(payload, "Failure: value too high, max %u bytes", netopt_units[i].size);
@@ -206,10 +214,22 @@ static ssize_t netSetter (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *conte
 		return coap_reply_simple(pkt, coap_code(4, 0), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, sizeof(payload));
 	}
 
+	//Fix the input value for TRUE, to match the netopt_enable_t enumerator
+	uint8_t netopt_u_size = netopt_units[i].size;
+	if(!netopt_units[i].size)
+	{
+		printf("boolean case, fixing variables\n");
+		if(value != 0)	value = NETOPT_ENABLE;	// NETOPT_DISABLE == 0
+		else	value = NETOPT_DISABLE;	// just for clarity
+		netopt_u_size++;	//fix size to 1, if indicated to be 0
+	}
+
 	//Arguments OK, make the change!
-	_gnrc_netapi_get_set(((gnrc_netif_t*)iface)->pid, netopt_units[i].op, 0, &value, netopt_units[i].size, GNRC_NETAPI_MSG_TYPE_SET);
+	printf("Arguments OK, making changes!\n");
+	printf("size = %su\nvalue = %u\n", netopt_u_size, value);
+	_gnrc_netapi_get_set(((gnrc_netif_t*)iface)->pid, netopt_units[i].op, 0, &value, netopt_u_size, GNRC_NETAPI_MSG_TYPE_SET);
 	uint32_t new = 0;
-	_gnrc_netapi_get_set(((gnrc_netif_t*)iface)->pid, netopt_units[i].op, 0, &new, netopt_units[i].size, GNRC_NETAPI_MSG_TYPE_GET);
+	_gnrc_netapi_get_set(((gnrc_netif_t*)iface)->pid, netopt_units[i].op, 0, &new, netopt_u_size, GNRC_NETAPI_MSG_TYPE_GET);
 	if(new != value)	//Failed to set value
 	{
 		char payload[] = "Failure: new value not accepted";
@@ -222,7 +242,7 @@ static ssize_t netSetter (coap_pkt_t *pkt, uint8_t *buf, size_t len, void *conte
 	char payload[] = "Success: new value set";
 	printf("%s\n", payload);
 	//payload[19] = '\0';	//just in case
-	printf("\tReceived\t=\t%i\n\tNew\t\t=\t%i\n", value, new);
+	printf("\tReceived\t=\t%lu\n\tNew\t\t=\t%lu\n", value, new);
 	return coap_reply_simple(pkt, coap_code(2, 4), buf, len, COAP_FORMAT_TEXT, (uint8_t*)payload, strlen(payload) + 1); //+1 for '\0' character
 }
 

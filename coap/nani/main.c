@@ -29,7 +29,7 @@
 
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
-char thread_stack[3092];    //2048]; //THREAD_STACKSIZE_MAIN];
+char thread_stack[2048]; //THREAD_STACKSIZE_MAIN];
 
 static void start_rpl(char *if_name) {
     kernel_pid_t if_pid = atoi(if_name);
