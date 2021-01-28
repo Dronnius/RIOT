@@ -2,36 +2,74 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <net/nanocoap_sock.h>
+
 #include "net/netif.h"
 #include "net/gnrc/netif.h"
 #include "fmt.h"
 
 #include "net/nanocoap.h"
+#include "handler.h"
 
 //extern netif_t;
 //extern netif_t *netif_get_by_name(const char *name);
 
 //typedef uint32_t (*if_setget) (netif_t* iface, netopt_t op, char* val);	//val == NULL for get calls
 
-typedef struct
-{
-	const char* name;		// String to be matched with request
-	const netopt_t op;		// Corresponding operation macro (see: https://riot-os.org/api/group__net__netopt.html#ga19e30424c1ab107c9c84dc0cb29d9906)
-	const uint32_t size;	// Size in bytes of the requested data 1->8bits, 2->16bits, 3->32bits etc.
-	//const if_setget setget;
-}netopt_unit;
 
+
+//#define NETOPT_UNITS_DEFAULT ({{"auto_ack", NETOPT_AUTOACK, 0}, {"channel", NETOPT_CHANNEL, 2}, {"hop_limit", NETOPT_HOP_LIMIT, 1}, {"random", NETOPT_RANDOM, 4}})
+//#define NETOPT_UNITS_DEFAULT_COUNT 4
+
+char thread_stack[2048]; //THREAD_STACKSIZE_MAIN];
 //uint32_t u8_setget (netif_t* iface, netopt_t op, char* val);
 //uint32_t u16_setget (netif_t* iface, netopt_t op, char* val);
 
-const netopt_unit netopt_units[] = {
+/*const netopt_unit netopt_units[] = {
 	{"auto_ack", NETOPT_AUTOACK, 0},	//example of boolean variable, (1 or 0)
 	{"channel", NETOPT_CHANNEL, 2},		//u16_setget},
 	{"hop_limit", NETOPT_HOP_LIMIT, 1},	//u8_setget}
 	{"random", NETOPT_RANDOM, 4},		//doesn't seem to be in use
-};
-const unsigned short netopt_units_numof = ARRAY_SIZE(netopt_units);
+};*/
 
+//global variables hold the netopt_unit structures
+const netopt_unit* netopt_units;
+unsigned short netopt_units_numof;
+
+//USER MUST ENSURE THAT DATA OF UNITS IS STORED ON HEAP (GLOBAL DECLARATION)
+void set_netopt_units(const netopt_unit* units, int count)
+{
+	if(count == 0 || units == NULL)
+	{
+		//create defaults on heap here (using RIOT's one-way malloc)
+			//if default are needed
+	}
+	else
+	{
+		netopt_units = units;
+		netopt_units_numof = count;
+	}
+}
+
+void* coaperator(void* arg)
+{
+	//printf("PID = %i", coap_pid);
+	(void) arg;
+	uint8_t buf[512];
+	sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
+	local.port = 5683;
+
+	printf("starting \"coaperator\" on port %i\n", local.port);
+	if(nanocoap_server(&local, buf, sizeof(buf)) == -1)
+		puts("Error binding to local, or UDP reception failed");
+	return NULL;
+}
+
+void start_coap_server(const netopt_unit* units, int count)
+{
+	set_netopt_units(units, count);
+	thread_create(thread_stack, sizeof(thread_stack), THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST, coaperator, NULL, "CoAP server thread");
+}
 
 /*uint32_t u8_setget (netif_t* iface, netopt_t op, char* val)
 {

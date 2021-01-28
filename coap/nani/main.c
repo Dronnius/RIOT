@@ -13,23 +13,28 @@
  * and become DODAG root on RPL instance
  */
 
-#include <stdio.h>
-#include <string.h>
+//#include <stdio.h>
+//#include <string.h>
 
-#include "shell.h"
-//#include "msg.h"
+//#include "shell.h"
 
 #include "net/gnrc.h"
 #include "net/gnrc/rpl.h"
 #include "net/netif.h"
+#include "handler.h"
 
-#include <net/nanocoap_sock.h>
 
 #define _IPV6_DEFAULT_PREFIX_LEN 64
 
 #define MAIN_QUEUE_SIZE     (8)
 static msg_t _main_msg_queue[MAIN_QUEUE_SIZE];
-char thread_stack[2048]; //THREAD_STACKSIZE_MAIN];
+
+const netopt_unit custom_netopt_units[] = {
+	{"auto_ack", NETOPT_AUTOACK, 0},	//example of boolean variable, (1 or 0)
+	{"channel", NETOPT_CHANNEL, 2},		//u16_setget},
+	{"hop_limit", NETOPT_HOP_LIMIT, 1},	//u8_setget}
+	{"random", NETOPT_RANDOM, 4},		//doesn't seem to be in use
+};
 
 static void start_rpl(char *if_name) {
     kernel_pid_t if_pid = atoi(if_name);
@@ -64,21 +69,7 @@ static int add_rpl_root(ipv6_addr_t *addr, uint8_t instance_id) {
     return 0;
 }
 
-void* coaperator(void* arg)
-{
-	//printf("PID = %i", coap_pid);
-	(void) arg;
-	uint8_t buf[512];
-	sock_udp_ep_t local = SOCK_IPV6_EP_ANY;
-	local.port = 5683;
 
-	printf("starting \"coaperator\" on port %i\n", local.port);
-	if(nanocoap_server(&local, buf, sizeof(buf)) == -1)
-		puts("Error binding to local, or UDP reception failed");
-
-
-	return NULL;
-}
 
 int main(void)
 {
@@ -118,8 +109,8 @@ int main(void)
     //CONCLUSION: I CANNOT ASSIGN A LESSER-SIZED INTEGER TO A GREATER-SIZED VARIABLE (bytes aren't aligned properly)
 
 	//initiate CoAP server
-    thread_create(thread_stack, sizeof(thread_stack), THREAD_PRIORITY_MAIN - 1, THREAD_CREATE_STACKTEST, coaperator, NULL, "CoAP server thread");
-    thread_yield();
+    start_coap_server(custom_netopt_units, 4);
+    thread_yield(); //why did I put this here?
 
         ///*DEBUG, print ipv6 address:
         ipv6_addr_t ipv6_addrs[2];
